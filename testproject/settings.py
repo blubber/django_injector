@@ -31,7 +31,7 @@ ALLOWED_HOSTS = ['testserver']
 
 INSTALLED_APPS = ['django_injector']
 
-MIDDLEWARE = []
+MIDDLEWARE = ['django_injector.middleware.DjangoInjectorMiddleware']
 
 ROOT_URLCONF = 'testproject.urls'
 

@@ -1,5 +1,5 @@
 from django.http import HttpResponse
-from django_injector import inject
+from injector import inject
 
 
 @inject

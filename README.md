@@ -48,3 +48,43 @@ def my_view(request, some_service: SomeService):
     """Will receive a `request` from Django and `some_service` from the injector."""
     return some_service.do_something(request)
 ```
+
+## Request scope
+
+A custom [Injector scope](https://injector.readthedocs.io/en/latest/terminology.html#scope) is provided –
+it's the request scope. Types bound in the request scope share instances during handling a single request
+but don't cross request handling boundary. It's similar to
+[Flask-Injector's request scope](https://github.com/alecthomas/flask_injector).
+
+The request scope depends on only single request being handled by a single thread (green threads,
+when gevent or Eventlet monkey patching is used, are also supported) at a time.
+
+Example:
+
+```python
+from django_injector import request_scope
+from injector import inject
+
+class Service:
+    pass
+
+
+class RequiresService:
+    @inject
+    def __init__(self, service: Service):
+        self.service = service
+
+
+class AlsoRequiresService:
+    @inject
+    def __init__(self, service: Service):
+        self.service = service
+
+
+@inject
+def my_view(request, service: Service, rs: RequiresService, ars: AlsoRequiresService):
+    # The same Service instance everywhere
+    assert service is rs.service
+    assert rs.service is ars.service
+    # ...
+```

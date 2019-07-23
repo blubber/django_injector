@@ -6,6 +6,8 @@ from django.utils.module_loading import import_string
 
 from injector import Injector, Module
 
+from .module import DjangoInjectorModule
+
 
 class DjangoInjectorConfig(AppConfig):
     name = 'django_injector'
@@ -13,7 +15,7 @@ class DjangoInjectorConfig(AppConfig):
     def ready(self):
         super().ready()
 
-        modules = []
+        modules = [DjangoInjectorModule]
 
         for mod_str in getattr(settings, 'INJECTOR_MODULES', []):
             mod = import_string(mod_str)

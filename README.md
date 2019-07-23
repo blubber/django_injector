@@ -88,3 +88,30 @@ def my_view(request, service: Service, rs: RequiresService, ars: AlsoRequiresSer
     assert rs.service is ars.service
     # ...
 ```
+
+
+## Builtin bindings
+
+One can inject `django.http.HttpRequest` and it'll be the same object as the `request` argument inside
+the views. The binding can be used to provide `HttpRequest` deep in the object hierarchy without
+having to pass it manually.
+
+Example:
+
+```python
+from django.http import HttpRequest
+from injector import inject
+
+
+class RequiresRequest:
+    @inject
+    def __init__(self, request: HttpRequest):
+        self.request = request
+
+
+@inject
+def my_view(request, rr: RequiresRequest):
+    # The same request everywhere
+    assert rr.request is request
+    # ...
+```

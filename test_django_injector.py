@@ -34,3 +34,8 @@ def test_request_scope_works(test_client):
     assert response2.status_code == 200
     # Let's make sure the request scope doesn't span multiple requests
     assert response1.content != response2.content
+
+
+def test_request_is_injectable(test_client):
+    response = test_client.get('/request-is-injectable')
+    assert response.status_code == 200

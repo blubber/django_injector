@@ -1,4 +1,5 @@
 from django.apps import apps as django_apps
+from django.http import HttpRequest
 
 import injector
 
@@ -18,6 +19,12 @@ class DjangoInjectorMiddleware:
         if injector.is_decorated_with_inject(view_func):
             request_scope = app_injector.get(RequestScope)
             request_scope.prepare()
+            # We're calling request_scope.get for side effects here – we're relying on the fact,
+            # that on the first get(HttpRequest, provider) call within a request scope the provided value
+            # will be stored in the scope so that further injections of HttpRequest can work just fine.
+            # This works in cooperation with DjangoInjectorModule doing binding of HttpRequest in the
+            # request scope.
+            request_scope.get(injector.BindingKey.create(HttpRequest), injector.InstanceProvider(request))
             try:
                 return app_injector.call_with_injection(view_func, args=view_args, kwargs=view_kwargs)
             finally:

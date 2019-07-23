@@ -1,5 +1,5 @@
 import random
-from django.http import HttpResponse
+from django.http import HttpRequest, HttpResponse
 from django_injector import request_scope
 from injector import inject
 
@@ -26,3 +26,15 @@ def request_scope_works(request, service1: RequestScopedService, service2: Reque
     # We return the id of the object we got in order for the code outside to verify that
     # objects change across requests
     return HttpResponse(str(service1.value))
+
+
+class RequiresRequest:
+    @inject
+    def __init__(self, request: HttpRequest) -> None:
+        self.request = request
+
+
+@inject
+def request_is_injectable(request, rr: RequiresRequest):
+    assert rr.request is request
+    return HttpResponse()

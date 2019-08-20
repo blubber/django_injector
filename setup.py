@@ -12,6 +12,7 @@ setuptools.setup(
     author_email='pypi@isogram.nl',
     description='Integrate injector with Django',
     long_description=long_description,
+    long_description_content_type='text/markdown',
     url='https://github.com/blubber/django_injector',
     packages=setuptools.find_packages(),
     classifiers=[

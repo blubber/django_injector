@@ -15,7 +15,8 @@ class DjangoInjectorConfig(AppConfig):
     def ready(self):
         super().ready()
 
-        modules = [DjangoInjectorModule]
+        self.module = DjangoInjectorModule()
+        modules = [self.module]
 
         for mod_str in getattr(settings, 'INJECTOR_MODULES', []):
             mod = import_string(mod_str)

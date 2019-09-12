@@ -12,7 +12,7 @@ Injector is a simple and easy to use dependency injection framework.
 $ pip install django_injector
 ```
 
-Then add `django_injector` to `INSTALLED_APPS` and `'django_injector.middleware.DjangoInjectorMiddleware'`
+Then add `django_injector` to `INSTALLED_APPS` and `'django_injector.middleware.inject_request_middleware'`
 to `MIDDLEWARE` in your Django configuration.
 
 
@@ -26,19 +26,17 @@ Modules are loaded when the app is loaded.
 
 ## Usage
 
-To use the injector decorate functions or methods with `injector.inject`. Decorated
+To use the injector decorate functions or methods with `django_injector.inject`. Decorated
 methods or functions can receive additional, non-injected, arguments, they should be listed
 **before** injected arguments.
 
-Previously there was a custom `inject` decorator in `django_injector` – it's no longer
-required and has been removed.
 
 ## Example
 This is an example of a view function that receives a `request` from Django and
 an injected argument.
 
 ```python
-from injector import inject
+from django_injector import inject
 
 from my_app.services import SomeService
 
@@ -63,7 +61,7 @@ Example:
 
 ```python
 from django_injector import request_scope
-from injector import inject
+from django_injector import inject
 
 class Service:
     pass
@@ -100,7 +98,7 @@ Example:
 
 ```python
 from django.http import HttpRequest
-from injector import inject
+from django_injector import inject
 
 
 class RequiresRequest:

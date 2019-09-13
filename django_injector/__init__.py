@@ -7,7 +7,7 @@ from django.apps import apps as django_apps
 from injector import inject as inject_
 
 
-__version__ = '0.0.2'
+__version__ = '0.1.0'
 __all__ = ['RequestScope', 'request_scope', 'inject']
 default_app_config = 'django_injector.apps.DjangoInjectorConfig'
 

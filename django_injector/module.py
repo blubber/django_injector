@@ -1,12 +1,23 @@
-import injector
+import threading
+import weakref
+
+from django.conf import Settings, settings
 from django.http import HttpRequest
 
-from .scope import request_scope
+from injector import Module, singleton
 
 
-class DjangoInjectorModule(injector.Module):
+class DjangoInjectorModule(Module):
+
+    def __init__(self):
+        self._local = threading.local()
+
+    def set_request(self, request):
+        self._local.request = request
+
+        if request:
+            weakref.finalize(request, self.set_request, None)
+
     def configure(self, binder) -> None:
-        # We don't specify what we bind *to* here – that's because we don't have access to the actual request
-        # here. Instead we just specify the scope *and* when preparing the scope in the
-        # DjangoInjectorMiddleware we manually inject the request instance into the scope.
-        binder.bind(HttpRequest, scope=request_scope)
+        binder.bind(Settings, to=settings, scope=singleton)
+        binder.bind(HttpRequest, to=lambda: self._local.request)

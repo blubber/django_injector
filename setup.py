@@ -15,6 +15,7 @@ setuptools.setup(
     long_description_content_type='text/markdown',
     url='https://github.com/blubber/django_injector',
     packages=setuptools.find_packages(),
+    install_requires=['injector'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: BSD License",

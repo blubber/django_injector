@@ -7,7 +7,7 @@ with open('README.md') as fp:
 
 setuptools.setup(
     name='django_injector',
-    version='0.1.0',
+    version='0.1.1',
     author='Tiemo Kieft',
     author_email='pypi@isogram.nl',
     description='Integrate injector with Django',

@@ -24,8 +24,6 @@ def inject(func):
     >>> def my_view(request, some_instance: SomeClass, **kwargs):
     >>>     ...
     """
-    injector = django_apps.get_app_config('django_injector').injector
-
     signature = inspect.signature(func)
     is_method = 'self' in signature.parameters  # There must be a better way to do this
 
@@ -33,6 +31,8 @@ def inject(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
+        injector = django_apps.get_app_config('django_injector').injector
+
         if is_method:
             self_, *args = args
         else:

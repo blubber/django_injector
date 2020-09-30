@@ -1,20 +1,18 @@
 from django.apps import apps as django_apps
+from django.utils.deprecation import MiddlewareMixin
 
 from django_injector.scope import RequestScope
 
 
-def inject_request_middleware(get_response):
-    app = django_apps.get_app_config('django_injector')
-
-    def middleware(request):
-        app.module.set_request(request)
+class DjangoInjectorMiddleware(MiddlewareMixin):
+    def process_request(self, request):
+        app = django_apps.get_app_config('django_injector')
+        app.injector_module.set_request(request)
 
         request_scope = app.injector.get(RequestScope)
         request_scope.prepare()
 
         try:
-            return get_response(request)
+            return self.get_response(request)
         finally:
             request_scope.cleanup()
-
-    return middleware

@@ -1,19 +1,29 @@
 # Django injector
 
 Django injector is an app for Django that integrates [injector](https://github.com/alecthomas/injector)
-with Django.
+with Django, enabling dependency inje tion.
 
 Injector is a simple and easy to use dependency injection framework.
 
 
 ## Installation
 
-```
+```python
 $ pip install django_injector
 ```
 
-Then add `django_injector` to `INSTALLED_APPS` and `'django_injector.middleware.inject_request_middleware'`
-to `MIDDLEWARE` in your Django configuration.
+To enable injec tion of `HttpRequest` objects you must add 
+`django_injector.inject_request_middleware` to `settings.MIDDLEWARES`:
+
+```python
+MIDDLEWARES = [
+  ...
+  'django_injector.inject_request_middleware',
+]
+```
+
+**WARNING**: Request injection only works on WSGI application containers, enabling
+it on ASGI containers such as dahpne will result in an error.
 
 
 ## Configuration
@@ -21,31 +31,42 @@ to `MIDDLEWARE` in your Django configuration.
 listed in the `INJECTOR_MODULES` setting, each item must be either a subclass of `injector.Module`
 or a callable that can receive a binder as its only argument.
 
-Modules are loaded when the app is loaded.
+Modules are loaded in the order they are listed, when the app is loaded.
 
 
 ## Usage
 
-To use the injector decorate functions or methods with `django_injector.inject`. Decorated
-methods or functions can receive additional, non-injected, arguments, they should be listed
-**before** injected arguments.
+`django_injector` will enable injection automatically for all view functions and
+template context processors that have type hints. To enable injection on class based
+views' `__init__` method decorate them with `injector.inject`. For example:
 
-
-## Example
-This is an example of a view function that receives a `request` from Django and
-an injected argument.
 
 ```python
-from django_injector import inject
+class MyService:
+    ...
 
-from my_app.services import SomeService
 
-
-@inject
-def my_view(request, some_service: SomeService):
-    """Will receive a `request` from Django and `some_service` from the injector."""
-    return some_service.do_something(request)
+def my_view(request, service: MyService) -> HttpResponse:
+    ...
 ```
+
+Will inject and insrtance of `MyService` into the view function, no decorator is needed. The
+smae works for context processors.
+
+Class based views need a decorated `__init__` method in order to work:
+
+```python
+from django.views.generic import View
+from injector import inject
+
+
+class MyView(View):
+
+    @inject
+    def __init__(self, service: MyService, **kwargs) -> None:
+        ...
+```
+
 
 ## Request scope
 
@@ -54,17 +75,21 @@ it's the request scope. Types bound in the request scope share instances during 
 but don't cross request handling boundary. It's similar to
 [Flask-Injector's request scope](https://github.com/alecthomas/flask_injector).
 
-The request scope depends on only single request being handled by a single thread (green threads,
-when gevent or Eventlet monkey patching is used, are also supported) at a time.
+**WARNING**: Request scope uses a thread local to bind types to requests. This means the
+scope is only available on WSGI containers, and not on ASGI containers such as daphne.
+Attempting to set request scope for a type will yield a `RuntimeError` if the request
+is handled by an ASGI container.
+
 
 Example:
 
 ```python
-from django_injector import request_scope
-from django_injector import inject
+from django_injector import request
+from injector import inject
 
-class Service:
-    pass
+
+class MyService:
+    ....
 
 
 class RequiresService:
@@ -79,7 +104,6 @@ class AlsoRequiresService:
         self.service = service
 
 
-@inject
 def my_view(request, service: Service, rs: RequiresService, ars: AlsoRequiresService):
     # The same Service instance everywhere
     assert service is rs.service
@@ -90,26 +114,9 @@ def my_view(request, service: Service, rs: RequiresService, ars: AlsoRequiresSer
 
 ## Builtin bindings
 
-One can inject `django.http.HttpRequest` and it'll be the same object as the `request` argument inside
-the views. The binding can be used to provide `HttpRequest` deep in the object hierarchy without
-having to pass it manually.
+`django_injector` comes with a built-in module that supports a couple Django types for
+injection:
 
-Example:
-
-```python
-from django.http import HttpRequest
-from django_injector import inject
-
-
-class RequiresRequest:
-    @inject
-    def __init__(self, request: HttpRequest):
-        self.request = request
-
-
-@inject
-def my_view(request, rr: RequiresRequest):
-    # The same request everywhere
-    assert rr.request is request
-    # ...
-```
+* `django.conf.Settings`: allows access to the current settings object (`django.conf.settings`);
+* `django.http.HttpRequest`: allows access to the current request. **WARNING**: On ASGI
+containers such as daphne this will be short circuited to `None`.

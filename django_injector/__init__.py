@@ -12,6 +12,7 @@ from django.http import HttpRequest
 from django.template.engine import Engine
 from django.urls import URLPattern, URLResolver, get_resolver
 from django.utils.module_loading import import_string
+from django.views.decorators.csrf import csrf_exempt
 
 from injector import (
     Binder,
@@ -23,6 +24,11 @@ from injector import (
     inject,
     singleton,
 )
+try:
+    from rest_framework.views import APIView
+    has_rest_framework = True
+except ImportError:
+    has_rest_framework = False
 
 
 __version__ = '0.1.1'
@@ -84,17 +90,52 @@ def wrap_function(fun: Callable, injector: Injector) -> Callable:
     return wrapper
 
 
+def wrap_drf_view_set(fun: Callable, injector: Injector) -> Callable:
+    cls = cast(Any, fun).cls
+    actions = cast(Any, fun).actions
+    initkwargs = cast(Any, fun).initkwargs
+
+    # Code copied from DRFs ViewSet.as_view
+    def view(request: HttpRequest, *args: Any, **kwargs: Any) -> Any:
+        self = injector.create_object(cls, additional_kwargs=initkwargs)
+
+        if 'get' in actions and 'head' not in actions:
+            actions['head'] = actions['get']
+
+        # We also store the mapping of request methods to actions,
+        # so that we can later set the action attribute.
+        # eg. `self.action = 'list'` on an incoming GET request.
+        self.action_map = actions
+
+        # Bind methods to actions
+        # This is the bit that's different to a standard view
+        for method, action in actions.items():
+            handler = getattr(self, action)
+            setattr(self, method, handler)
+
+        self.request = request
+        self.args = args
+        self.kwargs = kwargs
+
+        # And continue as usual
+        return self.dispatch(request, *args, **kwargs)
+
+    cast(Any, view).actions = actions
+    cast(Any, view).cls = cls
+    cast(Any, view).initkwargs = initkwargs
+
+    # Django Rest Framework views are exempt from CSRF checks through the CSRF
+    # middlware. Selective auth backends (session based authentication in particular)
+    # may selectively enforce csrf protection.
+    return csrf_exempt(view)
+
+
 def wrap_class_based_view(fun: Callable, injector: Injector) -> Callable:
     cls = cast(Any, fun).view_class
 
-    closure_contents = (c.cell_contents for c in cast(Any, fun).__closure__)
-    fun_closure = dict(zip(fun.__code__.co_freevars, closure_contents))
-
     try:
-        initkwargs = fun_closure['initkwargs']
-    except KeyError:
-        # Some views classes don't have initkwargs, assume we don't need
-        # to inject any arguments into these views.
+        initkwargs = cast(Any, fun).view_initkwargs
+    except AttributeError:
         return fun
 
     # Code copied from Django's django.views.generic.base.View
@@ -111,6 +152,12 @@ def wrap_class_based_view(fun: Callable, injector: Injector) -> Callable:
 
     cast(Any, view).view_class = cls
     cast(Any, view).view_initkwargs = initkwargs
+
+    if has_rest_framework and issubclass(cls, APIView):
+        # Django Rest Framework views are exempt from CSRF checks through the CSRF
+        # middlware. Selective auth backends (session based authentication in particular)
+        # may selectively enforce csrf protection.
+        view = csrf_exempt(view)
 
     return view
 
@@ -147,6 +194,8 @@ def wrap_fun(fun: Callable, injector: Injector) -> Callable:
 
     if hasattr(fun, 'view_class'):
         return wrap_class_based_view(fun, injector)
+    elif has_rest_framework and hasattr(fun, 'cls'):
+        return wrap_drf_view_set(fun, injector)
 
     return fun
 

@@ -26,6 +26,8 @@ def pytest_configure(config):
             'django.middleware.common.CommonMiddleware',
         ],
         INSTALLED_APPS=[
+            'django.contrib.contenttypes',
+            'django.contrib.auth',
             'django_injector',
             'tests',
         ],

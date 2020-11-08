@@ -24,14 +24,9 @@ from injector import (
     inject,
     singleton,
 )
-try:
-    from rest_framework.views import APIView
-    has_rest_framework = True
-except ImportError:
-    has_rest_framework = False
 
 
-__version__ = '0.1.1'
+__version__ = '0.2.0'
 __all__ = ['RequestScope', 'request']
 default_app_config = 'django_injector.DjangoInjectorConfig'
 logger = logging.getLogger(__name__)
@@ -153,10 +148,12 @@ def wrap_class_based_view(fun: Callable, injector: Injector) -> Callable:
     cast(Any, view).view_class = cls
     cast(Any, view).view_initkwargs = initkwargs
 
-    if has_rest_framework and issubclass(cls, APIView):
-        # Django Rest Framework views are exempt from CSRF checks through the CSRF
-        # middlware. Selective auth backends (session based authentication in particular)
-        # may selectively enforce csrf protection.
+    if hasattr(fun, 'cls'):
+        # Django Rest Framework APIView's as_view returns a callable with a cls attribute
+        # instead of view_class. If the original callable has a cls attribute, assume it's
+        # DRF. In addition, DRF views are csrf exempt by default, the SessionAuthentication
+        # auth backend will selectively apply CSRF protection.
+        cast(Any, view).cls = cls
         view = csrf_exempt(view)
 
     return view
@@ -194,7 +191,9 @@ def wrap_fun(fun: Callable, injector: Injector) -> Callable:
 
     if hasattr(fun, 'view_class'):
         return wrap_class_based_view(fun, injector)
-    elif has_rest_framework and hasattr(fun, 'cls'):
+    elif hasattr(fun, 'cls'):
+        # Django Rest Framework ViewSet's as_view returns a callable that
+        # does NOT have a view_class attribute. Instead it has a cls attribute.
         return wrap_drf_view_set(fun, injector)
 
     return fun

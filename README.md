@@ -1,122 +1,114 @@
-# Django injector
+# Django Injector
 
-Django injector is an app for Django that integrates [injector](https://github.com/alecthomas/injector)
-with Django, enabling dependency inje tion.
+Add [Injector](https://github.com/alecthomas/injector) to Django.
 
-Injector is a simple and easy to use dependency injection framework.
+Injector is a dependency-injection framework for Python, inspired by Guice. You can
+[find Injector on PyPI](https://pypi.org/project/injector/) and
+[Injector documentation on Read the Docs](https://injector.readthedocs.io/en/latest/). Django-Injector is
+inspired by [Flask-Injector](https://github.com/alecthomas/flask_injector).
+
+Django-Injector is compatiable with CPython 3.6+, Django 3.0+ and Django Rest Framework 3 (optional).
+
+Github page: https://github.com/blubber/django_injector
+
+PyPI package page: https://pypi.org/project/django-injector/
+
+
+## Features
+
+Django-Injector lets you inject dependencies into:
+
+* Views (functions and class-based)
+* Django template context processors
+* Rest Framework views (functions and class-based)
+* Rest Framework view sets
+
+Injector uses Python type hints to define types.
 
 
 ## Installation
 
-```python
-$ pip install django_injector
-```
+Django-Injector can be installed with pip:
 
-To enable injec tion of `HttpRequest` objects you must add 
-`django_injector.inject_request_middleware` to `settings.MIDDLEWARES`:
+`pip install django_injector`
 
-```python
+After installation add `django_injector` to your `INSTALLED_APPS` and optionally enable
+the request injection middleware.
+
+``` python
+INSTALLED_APPS = [
+    ...
+    'django_injector',
+]
+
 MIDDLEWARES = [
-  ...
-  'django_injector.inject_request_middleware',
+    ...
+    'django_injector.inject_request_middleware',
 ]
 ```
 
-**WARNING**: Request injection only works on WSGI application containers, enabling
-it on ASGI containers such as dahpne will result in an error.
+The middleware enables the injection of the current request.
+
+**WARNING:** The injection middleware only works on WSGI application containers. Enabling the
+middleware on an ASGI container (like daphne) will result in an error.
 
 
-## Configuration
-`django_injector` uses the module mechanism from injector. Desired modules should be
-listed in the `INJECTOR_MODULES` setting, each item must be either a subclass of `injector.Module`
-or a callable that can receive a binder as its only argument.
+## Example
 
-Modules are loaded in the order they are listed, when the app is loaded.
-
-
-## Usage
-
-`django_injector` will enable injection automatically for all view functions and
-template context processors that have type hints. To enable injection on class based
-views' `__init__` method decorate them with `injector.inject`. For example:
-
-
-```python
-class MyService:
-    ...
-
-
-def my_view(request, service: MyService) -> HttpResponse:
-    ...
-```
-
-Will inject and insrtance of `MyService` into the view function, no decorator is needed. The
-smae works for context processors.
-
-Class based views need a decorated `__init__` method in order to work:
-
-```python
+``` python
 from django.views.generic import View
 from injector import inject
-
-
-class MyView(View):
-
-    @inject
-    def __init__(self, service: MyService, **kwargs) -> None:
-        ...
-```
-
-
-## Request scope
-
-A custom [Injector scope](https://injector.readthedocs.io/en/latest/terminology.html#scope) is provided –
-it's the request scope. Types bound in the request scope share instances during handling a single request
-but don't cross request handling boundary. It's similar to
-[Flask-Injector's request scope](https://github.com/alecthomas/flask_injector).
-
-**WARNING**: Request scope uses a thread local to bind types to requests. This means the
-scope is only available on WSGI containers, and not on ASGI containers such as daphne.
-Attempting to set request scope for a type will yield a `RuntimeError` if the request
-is handled by an ASGI container.
-
-
-Example:
-
-```python
-from django_injector import request
-from injector import inject
+from rest_framework.views import APIView
 
 
 class MyService:
-    ....
-
-
-class RequiresService:
+    ...
+    
+def my_view(request, my_service: MyService):
+    # Has access to an instance of MyService
+    ...
+    
+class MyView(View):
     @inject
-    def __init__(self, service: Service):
-        self.service = service
-
-
-class AlsoRequiresService:
+    def __init__(self, my_service: MyService):
+        # Class based views require the @inject decorator to properly work with
+        # Django-Injector. The injection also works on the setup method.
+        self.my_service = my_service
+        
+class MyAPIView(APIView):
     @inject
-    def __init__(self, service: Service):
-        self.service = service
+    def setup(self, request, my_service: MyService, **kwargs):
+        # In Rest Framework views the injection can be done on the __init__
+        # method and the setup method. However, attempting to inject on the __init__
+        # will result in an exception if the HTML renderer is used. If the HTML renderer is
+        # not used injection on __init__ is safe. Injection on ViewSet instances
+        # works in the same way, and the same caveat applies.
+```
+
+Context processors have the same signature as view functions and work in the same way. They should
+be registered in the template options as usual.
 
 
-def my_view(request, service: Service, rs: RequiresService, ars: AlsoRequiresService):
-    # The same Service instance everywhere
-    assert service is rs.service
-    assert rs.service is ars.service
-    # ...
+## Injector Module support
+
+Django Injector supports Injector modules, just add a `INJECTOR_MODULES` setting to your configuration
+with a list of dotted paths to modules you want to load. The modules should either be callables that
+accept a single argument, `binder` or subclasses of `injector.Module`. The modules will be loaded
+when the injector Django app loads in the order they appear in the list. For example:
+
+``` python
+INJECTOR_MODULES = [
+    'my_app.modules.configure_for_production',
+    'my_app.modules.ServiceModule',
+]
 ```
 
 
-## Builtin bindings
+### DjangoModule
 
-`django_injector` comes with a built-in module that supports a couple Django types for
-injection:
+Django Injector comes with a built-in module named `DjangoModule` that is always loaded as the first
+module. It provides a couple of bindings for Django built-in types, namely:
 
-* `django.conf.Settings`: allows access to the current settings object (`django.conf.settings`);
-* `django.http.HttpRequest`: allows access to the current request. **WARNING**: On ASGI
-containers such as daphne this will be short circuited to `None`.
+* `django.htt.HttpRequest`: The current request. This only works if `django_injector.inject_request_middleware`
+is loaded and the application runs in a WSGI container.
+* `django.conf.Settings`: Injects `django.conf.settings`.

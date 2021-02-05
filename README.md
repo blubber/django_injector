@@ -63,18 +63,18 @@ from rest_framework.views import APIView
 
 class MyService:
     ...
-    
+
 def my_view(request, my_service: MyService):
     # Has access to an instance of MyService
     ...
-    
+
 class MyView(View):
     @inject
     def __init__(self, my_service: MyService):
         # Class based views require the @inject decorator to properly work with
         # Django-Injector. The injection also works on the setup method.
         self.my_service = my_service
-        
+
 class MyAPIView(APIView):
     @inject
     def setup(self, request, my_service: MyService, **kwargs):
@@ -87,6 +87,22 @@ class MyAPIView(APIView):
 
 Context processors have the same signature as view functions and work in the same way. They should
 be registered in the template options as usual.
+
+It is also possible to use injection in management commands. In this case the injection
+is done into the `__init__` method:
+
+```python
+from django.core.management import BaseCommand
+
+from injector import inject
+
+class Command(BaseCommand):
+
+    @inject
+    def __init__(self, my_service: MyService):
+        self.my_service = my_service
+        super().__init__()
+```
 
 
 ## Injector Module support

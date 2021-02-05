@@ -1,4 +1,5 @@
 import functools
+from importlib import import_module
 from inspect import ismethod
 import logging
 import threading
@@ -7,6 +8,7 @@ import warnings
 
 from django.apps import AppConfig, apps
 from django.conf import Settings, settings
+from django.core import management
 from django.core.handlers.asgi import ASGIRequest
 from django.http import HttpRequest
 from django.template.engine import Engine
@@ -54,6 +56,8 @@ class DjangoInjectorConfig(AppConfig):
             engine.template_context_processors,
             self.injector
         ))
+
+        patch_command_loader(self.injector)
 
 
 def inject_request_middleware(get_response: Callable) -> Callable:
@@ -211,6 +215,18 @@ def process_resolver(resolver: URLResolver, injector: Injector) -> None:
 
     if resolver._populated:
         resolver._populate()
+
+
+def patch_command_loader(injector: Injector) -> None:
+    ''' Patches the management command loader to allow injection into management commands. '''
+    # Original at:
+    # https://github.com/django/django/blob/master/django/core/management/__init__.py#L33
+
+    def load_command_class(app_name: str, name: str) -> None:
+        module = import_module('%s.management.commands.%s' % (app_name, name))
+        return injector.create_object(cast(Any, module).Command)
+
+    management.load_command_class = load_command_class
 
 
 def process_list(lst: List, injector: Injector) -> List:

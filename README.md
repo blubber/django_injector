@@ -7,7 +7,7 @@ Injector is a dependency-injection framework for Python, inspired by Guice. You 
 [Injector documentation on Read the Docs](https://injector.readthedocs.io/en/latest/). Django-Injector is
 inspired by [Flask-Injector](https://github.com/alecthomas/flask_injector).
 
-Django-Injector is compatiable with CPython 3.6+, Django 3.0+ and Django Rest Framework 3 (optional).
+Django-Injector is compatiable with CPython 3.6+, Django 2.2+ and Django Rest Framework 3 (optional).
 
 Github page: https://github.com/blubber/django_injector
 

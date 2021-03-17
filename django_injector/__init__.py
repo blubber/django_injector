@@ -9,7 +9,10 @@ import warnings
 from django.apps import AppConfig, apps
 from django.conf import Settings, settings
 from django.core import management
-from django.core.handlers.asgi import ASGIRequest
+try:
+    from django.core.handlers.asgi import ASGIRequest
+except ImportError:
+    ASGIRequest = None
 from django.http import HttpRequest
 from django.template.engine import Engine
 from django.urls import URLPattern, URLResolver, get_resolver
@@ -261,7 +264,7 @@ class DjangoModule(Module):
         self._local = threading.local()
 
     def set_request(self, request: HttpRequest) -> None:
-        if isinstance(request, ASGIRequest):
+        if ASGIRequest and isinstance(request, ASGIRequest):
             if settings.DEBUG:
                 logger.warning(
                     'Calling DjangoModule.set_request with a ASGIRequest will lead to '

@@ -119,6 +119,12 @@ def wrap_drf_view_set(fun: Callable, injector: Injector) -> Callable:
         self.args = args
         self.kwargs = kwargs
 
+        injector.call_with_injection(
+            callable=self.setup,
+            args=(request,) + args,
+            kwargs=kwargs,
+        )
+
         # And continue as usual
         return self.dispatch(request, *args, **kwargs)
 
@@ -144,7 +150,11 @@ def wrap_class_based_view(fun: Callable, injector: Injector) -> Callable:
     # to enable injection into class based view constructors.
     def view(request: Any, *args: Any, **kwargs: Any) -> Any:
         self = injector.create_object(cls, additional_kwargs=initkwargs)
-        self.setup(request, *args, **kwargs)
+        injector.call_with_injection(
+            callable=self.setup,
+            args=(request,) + args,
+            kwargs=kwargs,
+        )
         if not hasattr(self, 'request'):
             raise AttributeError(
                 "%s instance has no 'request' attribute. Did you override "

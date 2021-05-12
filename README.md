@@ -75,14 +75,11 @@ class MyView(View):
         # Django-Injector. The injection also works on the setup method.
         self.my_service = my_service
 
-class MyAPIView(APIView):
+class MyAPIView(APIView):  # Also works on ViewSet derivatives
     @inject
     def setup(self, request, my_service: MyService, **kwargs):
-        # In Rest Framework views the injection can be done on the __init__
-        # method and the setup method. However, attempting to inject on the __init__
-        # will result in an exception if the HTML renderer is used. If the HTML renderer is
-        # not used injection on __init__ is safe. Injection on ViewSet instances
-        # works in the same way, and the same caveat applies.
+      # Injection on __init__ will result in a TypeError when using the HTML
+      # renderer.
 ```
 
 Context processors have the same signature as view functions and work in the same way. They should

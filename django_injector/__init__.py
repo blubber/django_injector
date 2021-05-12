@@ -31,7 +31,7 @@ from injector import (
 )
 
 
-__version__ = '0.2.2'
+__version__ = '0.2.3'
 __all__ = ['RequestScope', 'request']
 default_app_config = 'django_injector.DjangoInjectorConfig'
 logger = logging.getLogger(__name__)

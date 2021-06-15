@@ -171,6 +171,7 @@ def wrap_class_based_view(fun: Callable, injector: Injector) -> Callable:
         # DRF. In addition, DRF views are csrf exempt by default, the SessionAuthentication
         # auth backend will selectively apply CSRF protection.
         cast(Any, view).cls = cls
+        cast(Any, view).initkwargs = initkwargs
         view = csrf_exempt(view)
 
     return view

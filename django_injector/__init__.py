@@ -9,6 +9,7 @@ import warnings
 from django.apps import AppConfig, apps
 from django.conf import Settings, settings
 from django.core import management
+
 try:
     from django.core.handlers.asgi import ASGIRequest
 except ImportError:
@@ -31,21 +32,21 @@ from injector import (
 )
 
 
-__version__ = '0.2.4'
-__all__ = ['RequestScope', 'request']
-default_app_config = 'django_injector.DjangoInjectorConfig'
+__version__ = "0.2.4"
+__all__ = ["RequestScope", "request"]
+default_app_config = "django_injector.DjangoInjectorConfig"
 logger = logging.getLogger(__name__)
 
 
 class DjangoInjectorConfig(AppConfig):
 
-    name = 'django_injector'
+    name = "django_injector"
 
     def ready(self) -> None:
         self.django_module = DjangoModule()
         self.injector = Injector([self.django_module])
 
-        for mod_str in getattr(settings, 'INJECTOR_MODULES', []):
+        for mod_str in getattr(settings, "INJECTOR_MODULES", []):
             module = import_string(mod_str)
             if isinstance(module, type) and issubclass(module, Module):
                 module = module()
@@ -55,16 +56,15 @@ class DjangoInjectorConfig(AppConfig):
         process_resolver(resolver, self.injector)
 
         engine = Engine.get_default()
-        engine.template_context_processors = tuple(process_list(
-            engine.template_context_processors,
-            self.injector
-        ))
+        engine.template_context_processors = tuple(
+            process_list(engine.template_context_processors, self.injector)
+        )
 
         patch_command_loader(self.injector)
 
 
 def inject_request_middleware(get_response: Callable) -> Callable:
-    app = apps.get_app_config('django_injector')
+    app = apps.get_app_config("django_injector")
 
     def middleware(request: HttpRequest) -> Any:
         app.django_module.set_request(request)
@@ -78,8 +78,8 @@ inject_request_middleware.async_callable = True  # type: ignore
 
 def DjangoInjectorMiddleware(get_response: Callable) -> Callable:
     warnings.warn(
-        'django_injector.DjangoInjectorMiddleware is deprecated. Please update your settings '
-        'to use djangoo_injector.inject_request_middleware instead',
+        "django_injector.DjangoInjectorMiddleware is deprecated. Please update your settings "
+        "to use djangoo_injector.inject_request_middleware instead",
         DeprecationWarning,
     )
     return inject_request_middleware(get_response)
@@ -89,6 +89,7 @@ def wrap_function(fun: Callable, injector: Injector) -> Callable:
     @functools.wraps(fun)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         return injector.call_with_injection(callable=fun, args=args, kwargs=kwargs)
+
     return wrapper
 
 
@@ -101,8 +102,8 @@ def wrap_drf_view_set(fun: Callable, injector: Injector) -> Callable:
     def view(request: HttpRequest, *args: Any, **kwargs: Any) -> Any:
         self = injector.create_object(cls, additional_kwargs=initkwargs)
 
-        if 'get' in actions and 'head' not in actions:
-            actions['head'] = actions['get']
+        if "get" in actions and "head" not in actions:
+            actions["head"] = actions["get"]
 
         # We also store the mapping of request methods to actions,
         # so that we can later set the action attribute.
@@ -155,7 +156,7 @@ def wrap_class_based_view(fun: Callable, injector: Injector) -> Callable:
             args=(request,) + args,
             kwargs=kwargs,
         )
-        if not hasattr(self, 'request'):
+        if not hasattr(self, "request"):
             raise AttributeError(
                 "%s instance has no 'request' attribute. Did you override "
                 "setup() and forget to call super()?" % cls.__name__
@@ -165,7 +166,7 @@ def wrap_class_based_view(fun: Callable, injector: Injector) -> Callable:
     cast(Any, view).view_class = cls
     cast(Any, view).view_initkwargs = initkwargs
 
-    if hasattr(fun, 'cls'):
+    if hasattr(fun, "cls"):
         # Django Rest Framework APIView's as_view returns a callable with a cls attribute
         # instead of view_class. If the original callable has a cls attribute, assume it's
         # DRF. In addition, DRF views are csrf exempt by default, the SessionAuthentication
@@ -181,6 +182,7 @@ def instance_method_wrapper(im: Callable) -> Callable:
     @functools.wraps(im)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         return im(*args, **kwargs)
+
     return wrapper
 
 
@@ -191,10 +193,10 @@ def wrap_fun(fun: Callable, injector: Injector) -> Callable:
 
     # This blockes needs to come before the block that checks for __call__
     # to prevent infinite recursion.
-    if hasattr(fun, '__bindings__'):
+    if hasattr(fun, "__bindings__"):
         return wrap_function(fun, injector)
 
-    if hasattr(fun, '__call__') and not isinstance(fun, type):
+    if hasattr(fun, "__call__") and not isinstance(fun, type):
         try:
             type_hints = get_type_hints(fun)
         except (AttributeError, TypeError):
@@ -202,14 +204,14 @@ def wrap_fun(fun: Callable, injector: Injector) -> Callable:
             # https://github.com/alecthomas/flask_injector/blob/master/flask_injector/__init__.py#L75
             wrap_it = False
         else:
-            type_hints.pop('return', None)
+            type_hints.pop("return", None)
             wrap_it = type_hints != {}
         if wrap_it:
             return wrap_fun(inject(fun), injector)
 
-    if hasattr(fun, 'view_class'):
+    if hasattr(fun, "view_class"):
         return wrap_class_based_view(fun, injector)
-    elif hasattr(fun, 'cls'):
+    elif hasattr(fun, "cls"):
         # Django Rest Framework ViewSet's as_view returns a callable that
         # does NOT have a view_class attribute. Instead it has a cls attribute.
         return wrap_drf_view_set(fun, injector)
@@ -232,12 +234,12 @@ def process_resolver(resolver: URLResolver, injector: Injector) -> None:
 
 
 def patch_command_loader(injector: Injector) -> None:
-    ''' Patches the management command loader to allow injection into management commands. '''
+    """Patches the management command loader to allow injection into management commands."""
     # Original at:
     # https://github.com/django/django/blob/master/django/core/management/__init__.py#L33
 
     def load_command_class(app_name: str, name: str) -> None:
-        module = import_module('%s.management.commands.%s' % (app_name, name))
+        module = import_module("%s.management.commands.%s" % (app_name, name))
         return injector.create_object(cast(Any, module).Command)
 
     management.load_command_class = load_command_class
@@ -251,16 +253,16 @@ class RequestScope(ThreadLocalScope):
     """A scope whose object lifetime is tied to a request."""
 
     def get(self, key: Any, provider: Provider) -> Any:
-        app = apps.get_app_config('django_injector')
+        app = apps.get_app_config("django_injector")
         request = app.django_module.get_request()
 
         if request is None:
             raise RuntimeError(
-                'RequestScope.get was called without binding to a request. '
-                'In order for RequestScope to work make sure '
-                'django_injector.inject_request_middleware is in your MIDDLEWARES settings '
-                'and make sure you are not running on an ASGI container like daphne. '
-                'ASGI containers are not supported currently.'
+                "RequestScope.get was called without binding to a request. "
+                "In order for RequestScope to work make sure "
+                "django_injector.inject_request_middleware is in your MIDDLEWARES settings "
+                "and make sure you are not running on an ASGI container like daphne. "
+                "ASGI containers are not supported currently."
             )
         return super().get(key, provider)
 
@@ -269,7 +271,6 @@ request = ScopeDecorator(RequestScope)
 
 
 class DjangoModule(Module):
-
     def __init__(self, request_scope_class: type = RequestScope) -> None:
         self.request_scope_class = request_scope_class
         self._local = threading.local()
@@ -278,9 +279,9 @@ class DjangoModule(Module):
         if ASGIRequest and isinstance(request, ASGIRequest):
             if settings.DEBUG:
                 logger.warning(
-                    'Calling DjangoModule.set_request with a ASGIRequest will lead to '
-                    'bad results because the asgi handler does not spawn a thread per '
-                    'request. Ignoring call to set_request'
+                    "Calling DjangoModule.set_request with a ASGIRequest will lead to "
+                    "bad results because the asgi handler does not spawn a thread per "
+                    "request. Ignoring call to set_request"
                 )
             self._local.request = None
             return

@@ -85,12 +85,17 @@ def DjangoInjectorMiddleware(get_response: Callable) -> Callable:
     return inject_request_middleware(get_response)
 
 
+def check_existing_csrf_exempt(fun: Callable, wrapper: Callable) -> Callable:
+    if hasattr(fun, "csrf_exempt") and fun.csrf_exempt:
+        # Graphene-Django common solution for csrf_exempt is already applied in urls
+        wrapper.csrf_exempt = True
+    return wrapper
+
 def wrap_function(fun: Callable, injector: Injector) -> Callable:
     @functools.wraps(fun)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         return injector.call_with_injection(callable=fun, args=args, kwargs=kwargs)
-
-    return wrapper
+    return check_existing_csrf_exempt(fun, wrapper)
 
 
 def wrap_drf_view_set(fun: Callable, injector: Injector) -> Callable:
@@ -175,8 +180,7 @@ def wrap_class_based_view(fun: Callable, injector: Injector) -> Callable:
         cast(Any, view).initkwargs = initkwargs
         view = csrf_exempt(view)
 
-    return view
-
+    return check_existing_csrf_exempt(fun, view)
 
 def instance_method_wrapper(im: Callable) -> Callable:
     @functools.wraps(im)

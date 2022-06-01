@@ -175,6 +175,10 @@ def wrap_class_based_view(fun: Callable, injector: Injector) -> Callable:
         cast(Any, view).initkwargs = initkwargs
         view = csrf_exempt(view)
 
+    if hasattr(fun, "csrf_exempt") and fun.csrf_exempt:
+        # Graphene-Django common solution for csrf_exempt is already applied in urls
+        view.csrf_exempt = True
+
     return view
 
 

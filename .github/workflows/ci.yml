@@ -1,38 +1,35 @@
-name: Python package
+name: CI
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9, "3.10", pypy3]
-        django-version: ["<3.0", "<4.0", "<5.0"]
+        python-version: [3.7, 3.8, 3.9, "3.10", "pypy3.7", "pypy3.8", "pypy3.9"]
+        django-version: [">=3.2.0,<3.3", "<5.0"]
         exclude:
-          - python-version: 3.6
-            django-version: "<5.0"
-          - python-version: 3.7
-            django-version: "<5.0"
-          - python-version: pypy3
-            django-version: "<5.0"
+          - python-version: "3.10"
+            django-version: ">=3.2.0,<3.3"
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install "django${{ matrix.django-version }}" djangorestframework injector pytest pytest-cov pytest-flake8
-    - name: Test with pytest
-      run: |
-        PYTHONPATH=. pytest
-    - if: ${{ matrix.python-version == 3.9 }}
-      name: Type check
-      run: |
-        pip install mypy
-        mypy django_injector/__init__.py
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install "django${{ matrix.django-version }}" djangorestframework injector pytest pytest-cov
+      - name: Test with pytest
+        run: |
+          PYTHONPATH=. pytest
+      - if: ${{ matrix.python-version == '3.10' }}
+        name: Type and style checks
+        run: |
+          pip install mypy black isort
+          isort --check django_injector tests
+          black --check django_injector
+          mypy django_injector

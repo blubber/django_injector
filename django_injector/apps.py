@@ -1,10 +1,10 @@
 import functools
-from importlib import import_module
-from inspect import ismethod
 import logging
 import threading
-from typing import Any, Callable, List, Optional, cast, get_type_hints
 import warnings
+from importlib import import_module
+from inspect import ismethod
+from typing import Any, Callable, List, Optional, cast, get_type_hints
 
 from django.apps import AppConfig, apps
 from django.conf import Settings, settings
@@ -31,10 +31,8 @@ from injector import (
     singleton,
 )
 
-
-__version__ = "0.2.5"
+__version__ = "0.3.0"
 __all__ = ["RequestScope", "request"]
-default_app_config = "django_injector.DjangoInjectorConfig"
 logger = logging.getLogger(__name__)
 
 
@@ -86,15 +84,17 @@ def DjangoInjectorMiddleware(get_response: Callable) -> Callable:
 
 
 def check_existing_csrf_exempt(fun: Callable, wrapper: Callable) -> Callable:
-    if hasattr(fun, "csrf_exempt") and fun.csrf_exempt:
+    if hasattr(fun, "csrf_exempt") and fun.csrf_exempt:  # type: ignore
         # Graphene-Django common solution for csrf_exempt is already applied in urls
-        wrapper.csrf_exempt = True
+        wrapper.csrf_exempt = True  # type: ignore
     return wrapper
+
 
 def wrap_function(fun: Callable, injector: Injector) -> Callable:
     @functools.wraps(fun)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         return injector.call_with_injection(callable=fun, args=args, kwargs=kwargs)
+
     return check_existing_csrf_exempt(fun, wrapper)
 
 
@@ -182,6 +182,7 @@ def wrap_class_based_view(fun: Callable, injector: Injector) -> Callable:
 
     return check_existing_csrf_exempt(fun, view)
 
+
 def instance_method_wrapper(im: Callable) -> Callable:
     @functools.wraps(im)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -191,7 +192,6 @@ def instance_method_wrapper(im: Callable) -> Callable:
 
 
 def wrap_fun(fun: Callable, injector: Injector) -> Callable:
-
     if ismethod(fun):
         fun = instance_method_wrapper(fun)
 

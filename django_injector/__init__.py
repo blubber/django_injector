@@ -91,10 +91,12 @@ def check_existing_csrf_exempt(fun: Callable, wrapper: Callable) -> Callable:
         wrapper.csrf_exempt = True
     return wrapper
 
+
 def wrap_function(fun: Callable, injector: Injector) -> Callable:
     @functools.wraps(fun)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         return injector.call_with_injection(callable=fun, args=args, kwargs=kwargs)
+
     return check_existing_csrf_exempt(fun, wrapper)
 
 
@@ -181,6 +183,7 @@ def wrap_class_based_view(fun: Callable, injector: Injector) -> Callable:
         view = csrf_exempt(view)
 
     return check_existing_csrf_exempt(fun, view)
+
 
 def instance_method_wrapper(im: Callable) -> Callable:
     @functools.wraps(im)

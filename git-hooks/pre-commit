@@ -1,0 +1,22 @@
+#!/bin/sh
+
+set -eu
+
+for command in isort autoflake black; do
+    if ! command -v $command &> /dev/null
+    then
+        echo "ERROR: unable to execute ${command}. Please make sure ${command} is available in your \$PATH."
+        echo "Hint: install ${command} using: pip3 install ${command}."
+        exit 1
+    fi
+done
+
+python_files=$(git diff --cached --name-only --diff-filter=ACM | grep 'py$' || echo "")
+
+if [ "$python_files" != "" ]
+then
+    isort $python_files
+    autoflake --in-place --remove-all-unused-imports --ignore-init-module-imports --remove-unused-variables $python_files
+    black $python_files
+    git diff --exit-code $python_files > /dev/null
+fi

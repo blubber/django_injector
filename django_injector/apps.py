@@ -31,7 +31,7 @@ from injector import (
     singleton,
 )
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 __all__ = ["RequestScope", "request"]
 logger = logging.getLogger(__name__)
 
